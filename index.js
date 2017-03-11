@@ -12,57 +12,60 @@ var redisPort = config.redisPort || 6379;
 
 function popFollowQueue() {
   var redis = require('redis'), client = redis.createClient(redisPort);
-  // pop the queue
+  // pop the queue. reference: https://redis.io/commands/lpop
   client.lpop(botName + '-follow-queue', function(err, reply) {
     console.log('next follower is', reply);
-    // if null, ignore
+    // if there is a reply
     if (reply !== null) {
+      // parse it and log it
       var data = JSON.parse(reply);
       console.log('THE TWEET:', data);
-      // if there's no image URL, skip all the image stuff and just tweet the text
+      // if there's no image URL
       if (!data.url) {
-        T.post('statuses/update', { status: data.tweet}, function(err, reply) {
+        // tweet the text
+        T.post('statuses/update', {status: data.tweet}, function(err, reply) {
+          // if there's an error, log it and quit
           if (err) {
             console.log('error:', err);
-            // close connection and program
             client.end();
           }
+          // otherwise, log the tweet and quit
           else {
             console.log('reply:', reply);
-            // close connection and program
             client.end();
           }
         });
       }
+      // if there is an image URL
       else {
         // get the base64 encoding of the URL
         var b64url = new Buffer(data.url).toString('base64');
-        // see if the url exists in our DB
+        // see if the URL exists in our DB
         client.hexists(botName + '-images',b64url, function(err, doesExist) {
-          console.log('doesExist:',doesExist);
-          // if the URL does exist, just tweet the data stored there
+          console.log('doesExist:', doesExist);
+          // if the URL does exist, get it
           if (doesExist) {
             client.hget(botName + '-images',b64url, function(err, theData) {
               // if we have a problem grabbing the image locally, log the error and quit
               if (err) {
                 console.log('error:', err);
-                // close connection and program
                 client.end();
+              // otherwise, we did get our local image
               } else {
-                // otherwise we did get our local image and now we tweet it
+                // upload the media
                 T.post('media/upload', { media: theData }, function (err, dataResp) {
-                  //console.log(err, dataResp);
-                  // now we can reference the media and post a tweet (media will attach to the tweet) 
+                  // store the media in a variable 
                   var mediaIdStr = dataResp.media_id_string;
+                  // post a tweet that includes the text and the media
                   T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
+                    // if there's an error, log it and quit
                     if (err) {
                       console.log('error:', err);
-                      // close connection and program
                       client.end();
                     }
+                    // otherwise, log the tweet and quit
                     else {
                       console.log('reply:', reply);
-                      // close connection and program
                       client.end();
                     }
                   });
@@ -77,39 +80,42 @@ function popFollowQueue() {
             // download the image
             request
               .get(data.url)
+              // if there's an error, log it and quit
               .on('error', function(response) {
                 console.log('error:', response);
-                // close connection and program
                 client.end();
               })
+              // otherwise, push the image chunk into the chunks array
               .on('data', function(chunk) {
                 chunks.push(chunk);
               })
+              // print 'GOT IT' to the console on quitting
               .on('end', function() {
                 console.log('GOT IT');
                 // convert image to base64
                 var b64content = Buffer.concat(chunks).toString('base64');
                 // put the content in the DB
                 client.hset(botName + '-images',b64url,b64content, function(err) {
-                  // if we couldn't get an image due to an error, oops, log the error and quit
+                  // if there's an error, log it and quit
                   if (err) {
                     console.log('error:', err);
-                    // close connection and program
                     client.end();
+                  // otherwise, continue to the media upload
                   } else {
-                    // post the media to Twitter 
+                    // upload the media
                     T.post('media/upload', { media: b64content }, function (err, dataResp) {
-                      // now we can reference the media and post a tweet (media will attach to the tweet) 
+                      // store the media in a variable  
                       var mediaIdStr = dataResp.media_id_string;
+                      // post a tweet that includes the text and the media
                       T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
+                        // if there's an error, log it and quit
                         if (err) {
                           console.log('error:', err);
-                          // close connection and program
                           client.end();
                         }
+                        // otherwise, log the tweet and quit
                         else {
                           console.log('reply:', reply);
-                          // close connection and program
                           client.end();
                         }
                       });

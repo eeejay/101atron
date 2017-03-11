@@ -11,12 +11,31 @@ For a general overview of its use, [check out this article](http://feeltrain.com
 To install and run 101atron you need the following software:
 
 * [Node.js](https://nodejs.org/) v0.10+.
-* [redis](http://redis.io/). This is the database software used to track state.
+* [redis](https://redis.io/topics/quickstart). This is the database software used to track state.
 
-This has only been tested on OSX and Ubuntu 14.04 LTS. It might work on Windows but I haven't checked.
+## Redis installation and notes
+
+Download and compile Redis:
+
+`$ wget http://download.redis.io/redis-stable.tar.gz`
+
+`$ tar xvzf redis-stable.tar.gz`
+
+`$ cd redis-stable`
+
+`$ make`
+
+Copy redis-server and redis-cli into the correct places:
+
+`$ sudo cp src/redis-server /usr/local/bin/`
+
+`$ sudo cp src/redis-cli /usr/local/bin/`
+
+To kill the Redis server:
+
+`$ redis-cli shutdown` in a separate terminal window
 
 ## Installation
-
 Clone this repository locally:
 
 `$ git clone git@github.com:dariusk/101atron.git`
