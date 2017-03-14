@@ -11,10 +11,12 @@ var botName = config.botName;
 var redisPort = config.redisPort || 6379;
 
 function popFollowQueue() {
+  // init the redis client
   var redis = require('redis'), client = redis.createClient(redisPort);
-  // pop the queue. reference: https://redis.io/commands/lpop
+  // return the most recent follower
+  // lpop ref: https://redis.io/commands/lpop
   client.lpop(botName + '-follow-queue', function(err, reply) {
-    console.log('next follower is', reply);
+    console.log('Next follower is: ', reply);
     // if there is a reply
     if (reply !== null) {
       // parse it and log it
@@ -138,20 +140,17 @@ function popQueue() {
   var redis = require('redis'), client = redis.createClient(redisPort);
   // pop the queue
   client.lpop(botName + '-queue', function(err, reply) {
-    console.log('next is', reply);
+    console.log('Next is: ', reply);
     // if null, ignore
     if (reply !== null) {
       var data = JSON.parse(reply);
-      //console.log('THE TWEET:', data);
       T.post('statuses/update', { status: data.tweet, in_reply_to_status_id: data.tweetId }, function(err, reply) {
         if (err) {
           console.log('error:', err);
-          // close connection and program
           client.end();
         }
         else {
           console.log('reply:', reply);
-          // close connection and program
           client.end();
         }
       });
