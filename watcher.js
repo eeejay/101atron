@@ -42,7 +42,7 @@ function updateData() {
       // name the element 'url'
       newLookup[el.keyword.toLowerCase()] = el.url;
       // the data structure looks like this by now:
-      // "newLookup": { 
+      // "newLookup": {
       //        [{"keyword": "horse", "url": "horse.com"},
       //         {"keyword": "cow", "url": "cow.com"}]
       // }
@@ -144,7 +144,7 @@ stream.on('tweet', function (eventMsg) {
       // look up the URL for the corresponding keyword
       var url = lookup[wordFound];
       // build our tweet:
-      // the user we're replying to + list of mentions + 
+      // the user we're replying to + list of mentions +
       // one of our replies with the link inserted instead of "LINK"
       var tweet = '@' + user + ' ' + mentions.join(' ') + ' ' + replies.pick().replace('LINK',url);
       var data = JSON.stringify({
@@ -152,7 +152,7 @@ stream.on('tweet', function (eventMsg) {
         tweet: tweet
       });
       console.log(data);
-      client.rpush(botName + '-queue', data, redis.print);    
+      client.rpush(botName + '-queue', data, redis.print);
     }
   }
   console.log(user + ': ' + text);
