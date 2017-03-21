@@ -2,7 +2,7 @@ var _ = require('underscore');
 _.mixin( require('underscore.deferred') );
 var config = require('./config.js');
 var startWatcher = require('./watcher');
-var Twit = require('twit');
+var Twit = require('./twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
 var request = require('request');

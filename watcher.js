@@ -6,7 +6,7 @@
 var _ = require('underscore');
 _.mixin( require('underscore.deferred') );
 var config = require('./config.js');
-var Twit = require('twit');
+var Twit = require('./twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
 var GoogleSpreadsheet = require('google-spreadsheet');
@@ -117,7 +117,7 @@ function onTweet(eventMsg) {
   }
   // if the user is authorized to use the bot
   if (isAuthorized) {
-    var postText;
+    var postText = "";
     // parse out just the bit of the tweet after the word "about"
     if (text.match(/\sabout\s(.*)$/)) {
       postText = text.match(/\sabout\s(.*)$/)[1];
