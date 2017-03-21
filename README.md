@@ -51,11 +51,9 @@ $ npm install
 
 ## Overview
 
-Before you run the bot, it's useful to understand how it's architected. The bot consists of two executable files: `index.js` and `watcher.js`.
+Before you run the bot, it's useful to understand how it's architected. The bot listens to Twitter, when it is invoked by either a tweet or follow it composes a tweet that is then added to a queue. For rate limiting reasons, the queue is pumped at a regualr interval longer than one minute.
 
-`watcher.js` is designed to be always running in the background. This is the process that watches for users "invoking" the bot and for users following the bot. It's always listening to Twitter. When a user tweets something like "hey @101atron tell @tinysubversions about cats", this file registers the event and then composes a tweet that is pushed to our Redis database. *Importantly, this file does not ever tweet: it just queues tweets up in a database.*
-
-`index.js` is where the tweeting happens, and is a much simpler piece of code. This file is meant to be executed via a cron job or other scheduler. If you set it to run every five minutes, then every five minutes the code will look at the database, see if there's a tweet it's supposed to tweet, and then posts it to Twitter.
+This can all happen in one process, or you can split the tasks into two processes. One that watches Twitter and runs continuously. Another one can be started as a cron job and pumps the queue at a given interval.
 
 ## Set up your bot's Twitter account
 
@@ -113,7 +111,7 @@ You can use this existing spreadsheet to test things out, but eventually you'll 
 
 Once you have a spreadsheet set up and published (or you're just using the default one), run:
 
-`$ node watcher.js`
+`$ node index.js`
 
 This will make the bot start "watching" for input.
 
@@ -121,20 +119,29 @@ Next, use a Twitter account that you've authorized to invoke the bot in the "Use
 
 "@myBotName, tell @twitter about cats"
 
-This should almost immediately cause the terminal window running `watcher.js` to write some text to the screen confirming that it saw you talk to it and that it put a tweet in the Redis DB.
+This should almost immediately cause the terminal window running `index.js` to write some text to the screen confirming that it saw you talk to it and that it put a tweet in the Redis DB.
 
-In another terminal window, manually run `index.js` to pull that tweet from the DB and tweet it.
+After a period less than the set interval (61 seconds by default), the tweet will be retrieved from the Redis DB and published.
 
-`$ node index.js`
+## Tweet via cron job
+
+If, for some reason you would like to split the bot into two separate tasks: watching and tweeting, you can start the watcher with the following command:
+
+`$ node index.js --watcher`
+
+You can then schedule the following command via a `cron` or similar scheduler:
+
+`$ node index.js --pop-queue`
+
+This will pop the queue of tweets and follows in the Redis DB and post them to Twitter.
 
 ## Permanent setup
 
 If you want this to run reliably and permanently, I recommend the following setup:
 
 * run the bot on a remote server of some kind so it can run 24/7.
-* use a process monitoring program like [forever](https://www.npmjs.com/package/forever) to run `watcher.js`. This will automatically restart `watcher.js` if it crashes for some reason.
-* run your redis DB and `watcher.js` (via `forever` or similar) on reboot.
-* run `index.js` via `cron` or a similar scheduler, and don't have it run more than once a minute (otherwise you'll run into Twitter rate limits).
+* use a process monitoring program like [forever](https://www.npmjs.com/package/forever) to run `index.js`. This will automatically restart `index.js` if it crashes for some reason.
+* run your redis DB and `index.js` (via `forever` or similar) on reboot.
 
 ## Questions
 

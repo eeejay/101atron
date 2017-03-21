@@ -101,10 +101,7 @@ Array.prototype.pick = function() {
   return this[Math.floor(Math.random()*this.length)];
 };
 
-// start listening for mentions of our bot name
-var stream = T.stream('statuses/filter', { track: [ botName ] });
-
-stream.on('tweet', function (eventMsg) {
+function onTweet(eventMsg) {
   // store text of tweet
   var text = eventMsg.text.toLowerCase();
   // store screen name of tweeter
@@ -156,11 +153,9 @@ stream.on('tweet', function (eventMsg) {
     }
   }
   console.log(user + ': ' + text);
-});
+}
 
-var userStream = T.stream('user');
-// also track follows and add to a different queue
-userStream.on('follow', function (eventMsg) {
+function onFollow(eventMsg) {
   var name = eventMsg.source.name;
   var screenName = eventMsg.source.screen_name;
   console.log('Followed by: ', name, screenName);
@@ -183,8 +178,20 @@ userStream.on('follow', function (eventMsg) {
       // do nothing
     }
   });
-});
+}
 
-// on launch, and every two minutes, update the spreadsheet
-updateData();
-setInterval(updateData, 2*60*1000);
+function startWatcher() {
+  // on launch, and every two minutes, update the spreadsheet
+  updateData();
+  setInterval(updateData, 2*60*1000);
+
+  // start listening for mentions of our bot name
+  var stream = T.stream('statuses/filter', { track: [ botName ] });
+  stream.on('tweet', onTweet);
+
+  // also track follows and add to a different queue
+  var userStream = T.stream('user');
+  userStream.on('follow', onFollow);
+}
+
+module.exports = startWatcher;

@@ -1,6 +1,7 @@
 var _ = require('underscore');
 _.mixin( require('underscore.deferred') );
 var config = require('./config.js');
+var startWatcher = require('./watcher');
 var Twit = require('twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
@@ -56,7 +57,7 @@ function popFollowQueue() {
               } else {
                 // upload the media
                 T.post('media/upload', { media: theData }, function (err, dataResp) {
-                  // store the media in a variable 
+                  // store the media in a variable
                   var mediaIdStr = dataResp.media_id_string;
                   // post a tweet that includes the text and the media
                   T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
@@ -106,7 +107,7 @@ function popFollowQueue() {
                   } else {
                     // upload the media
                     T.post('media/upload', { media: b64content }, function (err, dataResp) {
-                      // store the media in a variable  
+                      // store the media in a variable
                       var mediaIdStr = dataResp.media_id_string;
                       // post a tweet that includes the text and the media
                       T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
@@ -158,11 +159,37 @@ function popQueue() {
     else {
       // empty queue, close client
       client.end();
-      // pop the follow queue now instead
+      // if there are no messages (we are not serving activists),
+      // THEN we pop the follow queue for some fun instead
       popFollowQueue();
     }
   });
 }
 
-// we only pop the message queue. if there are no messages (we are not serving activists), THEN we pop the follow queue for some fun instead
-popQueue();
+if (require.main === module) {
+  let argv = require('minimist')(process.argv.slice(2));
+  console.log(argv);
+
+  if (argv['watch']) {
+    // start watcher. will probably pop queue from another process..
+    startWatcher();
+  } else if (argv['pop-queue']) {
+    // pop queue once.
+    popQueue();
+  } else {
+    var interval = Number(argv['interval'] || 61);
+    if (isNaN(interval)) {
+      console.error("interval must be a number");
+      process.exit(1);
+    }
+
+    if (interval < 60) {
+      console.warning("interval is smaller than 60 seconds");
+    }
+
+    // do it all. watch for tweets, and pop the queue.
+    startWatcher();
+    // pop queue at a set interval.
+    setInterval(popQueue, interval*1000);
+  }
+}
