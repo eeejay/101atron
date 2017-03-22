@@ -6,6 +6,7 @@ var Twit = require('./twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
 var request = require('request');
+var startWeb = require("./web");
 
 // configuration
 var bot_name = config.bot_name;
@@ -191,5 +192,6 @@ if (require.main === module) {
     startWatcher();
     // pop queue at a set interval.
     setInterval(popQueue, interval*1000);
+    startWeb();
   }
 }
