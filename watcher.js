@@ -11,11 +11,11 @@ var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token
 var T = new Twit(twitConfig);
 var GoogleSpreadsheet = require('google-spreadsheet');
 // create a new google spreadsheet object
-var gs = new GoogleSpreadsheet(config.spreadsheetKey);
+var gs = new GoogleSpreadsheet(config.spreadsheet_key);
 
-var botName = config.botName;
-var redisPort = config.redisPort || 6379;
-var redis = require('redis'), client = redis.createClient(redisPort);
+var bot_name = config.bot_name;
+var redis_addr = config.redis_port || config.redis_url || 6379;
+var redis = require('redis'), client = redis.createClient(redis_addr);
 
 var users = [],
     keywords = [],
@@ -135,7 +135,7 @@ function onTweet(eventMsg) {
       // extract every user from the tweet as an array of usernames (minus our own username)
       // match all usernames but remove the bot name itself (case insensitive)
       // so that we have a list of people we're tagging in the message
-      var mentions = _.difference(text.match(/@\w*/g), [botName.toLowerCase()]);
+      var mentions = _.difference(text.match(/@\w*/g), [bot_name.toLowerCase()]);
       // get the tweet ID we're replying to so we can preserve the thread
       var tweetId = eventMsg.id_str;
       // look up the URL for the corresponding keyword
@@ -149,7 +149,7 @@ function onTweet(eventMsg) {
         tweet: tweet
       });
       console.log(data);
-      client.rpush(botName + '-queue', data, redis.print);
+      client.rpush(bot_name + '-queue', data, redis.print);
     }
   }
   console.log(user + ': ' + text);
@@ -161,7 +161,7 @@ function onFollow(eventMsg) {
   console.log('Followed by: ', name, screenName);
   // check if this person is in the followed Set
   // sismember ref: https://redis.io/commands/sismember
-  client.sismember(botName + '-followed-set', screenName, function(err, isMember) {
+  client.sismember(bot_name + '-followed-set', screenName, function(err, isMember) {
     // if this person is NOT in the followed Set, push them to the queue
     if (!isMember) {
       var reward = rewards.pick();
@@ -169,9 +169,9 @@ function onFollow(eventMsg) {
         tweet: '@' + screenName + ' ' + reward.text,
         url: reward.url
       });
-      client.rpush(botName + '-follow-queue', data, redis.print);
+      client.rpush(bot_name + '-follow-queue', data, redis.print);
       // add this person to the followed Set
-      client.sadd(botName + '-followed-set', screenName);
+      client.sadd(bot_name + '-followed-set', screenName);
     }
     // if the person is in the follow set, well then...
     else {
@@ -186,7 +186,7 @@ function startWatcher() {
   setInterval(updateData, 2*60*1000);
 
   // start listening for mentions of our bot name
-  var stream = T.stream('statuses/filter', { track: [ botName ] });
+  var stream = T.stream('statuses/filter', { track: [ bot_name ] });
   stream.on('tweet', onTweet);
 
   // also track follows and add to a different queue

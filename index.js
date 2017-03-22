@@ -8,15 +8,15 @@ var T = new Twit(twitConfig);
 var request = require('request');
 
 // configuration
-var botName = config.botName;
-var redisPort = config.redisPort || 6379;
+var bot_name = config.bot_name;
+var redis_addr = config.redis_port || config.redis_url || 6379;
 
 function popFollowQueue() {
   // init the redis client
-  var redis = require('redis'), client = redis.createClient(redisPort);
+  var redis = require('redis'), client = redis.createClient(redis_addr);
   // return the most recent follower
   // lpop ref: https://redis.io/commands/lpop
-  client.lpop(botName + '-follow-queue', function(err, reply) {
+  client.lpop(bot_name + '-follow-queue', function(err, reply) {
     console.log('Next follower is: ', reply);
     // if there is a reply
     if (reply !== null) {
@@ -44,11 +44,11 @@ function popFollowQueue() {
         // get the base64 encoding of the URL
         var b64url = new Buffer(data.url).toString('base64');
         // see if the URL exists in our DB
-        client.hexists(botName + '-images',b64url, function(err, doesExist) {
+        client.hexists(bot_name + '-images',b64url, function(err, doesExist) {
           console.log('doesExist:', doesExist);
           // if the URL does exist, get it
           if (doesExist) {
-            client.hget(botName + '-images',b64url, function(err, theData) {
+            client.hget(bot_name + '-images',b64url, function(err, theData) {
               // if we have a problem grabbing the image locally, log the error and quit
               if (err) {
                 console.log('error:', err);
@@ -78,7 +78,7 @@ function popFollowQueue() {
           }
           else {
             // if it doesn't exist, then download the image, convert the image data to base64,
-            // then put that in the botName + '-images' hash, and then upload it as media
+            // then put that in the bot_name + '-images' hash, and then upload it as media
             var chunks = [];
             // download the image
             request
@@ -98,7 +98,7 @@ function popFollowQueue() {
                 // convert image to base64
                 var b64content = Buffer.concat(chunks).toString('base64');
                 // put the content in the DB
-                client.hset(botName + '-images',b64url,b64content, function(err) {
+                client.hset(bot_name + '-images',b64url,b64content, function(err) {
                   // if there's an error, log it and quit
                   if (err) {
                     console.log('error:', err);
@@ -138,9 +138,9 @@ function popFollowQueue() {
 }
 
 function popQueue() {
-  var redis = require('redis'), client = redis.createClient(redisPort);
+  var redis = require('redis'), client = redis.createClient(redis_addr);
   // pop the queue
-  client.lpop(botName + '-queue', function(err, reply) {
+  client.lpop(bot_name + '-queue', function(err, reply) {
     console.log('Next is: ', reply);
     // if null, ignore
     if (reply !== null) {
