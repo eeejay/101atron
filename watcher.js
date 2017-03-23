@@ -6,16 +6,16 @@
 var _ = require('underscore');
 _.mixin( require('underscore.deferred') );
 var config = require('./config.js');
-var Twit = require('twit');
+var Twit = require('./twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
 var GoogleSpreadsheet = require('google-spreadsheet');
 // create a new google spreadsheet object
-var gs = new GoogleSpreadsheet(config.spreadsheetKey);
+var gs = new GoogleSpreadsheet(config.spreadsheet_key);
 
-var botName = config.botName;
-var redisPort = config.redisPort || 6379;
-var redis = require('redis'), client = redis.createClient(redisPort);
+var bot_name = config.bot_name;
+var redis_addr = config.redis_port || config.redis_url || 6379;
+var redis = require('redis'), client = redis.createClient(redis_addr);
 
 var users = [],
     keywords = [],
@@ -42,7 +42,7 @@ function updateData() {
       // name the element 'url'
       newLookup[el.keyword.toLowerCase()] = el.url;
       // the data structure looks like this by now:
-      // "newLookup": { 
+      // "newLookup": {
       //        [{"keyword": "horse", "url": "horse.com"},
       //         {"keyword": "cow", "url": "cow.com"}]
       // }
@@ -101,10 +101,7 @@ Array.prototype.pick = function() {
   return this[Math.floor(Math.random()*this.length)];
 };
 
-// start listening for mentions of our bot name
-var stream = T.stream('statuses/filter', { track: [ botName ] });
-
-stream.on('tweet', function (eventMsg) {
+function onTweet(eventMsg) {
   // store text of tweet
   var text = eventMsg.text.toLowerCase();
   // store screen name of tweeter
@@ -120,7 +117,7 @@ stream.on('tweet', function (eventMsg) {
   }
   // if the user is authorized to use the bot
   if (isAuthorized) {
-    var postText;
+    var postText = "";
     // parse out just the bit of the tweet after the word "about"
     if (text.match(/\sabout\s(.*)$/)) {
       postText = text.match(/\sabout\s(.*)$/)[1];
@@ -138,13 +135,13 @@ stream.on('tweet', function (eventMsg) {
       // extract every user from the tweet as an array of usernames (minus our own username)
       // match all usernames but remove the bot name itself (case insensitive)
       // so that we have a list of people we're tagging in the message
-      var mentions = _.difference(text.match(/@\w*/g), [botName.toLowerCase()]);
+      var mentions = _.difference(text.match(/@\w*/g), [bot_name.toLowerCase()]);
       // get the tweet ID we're replying to so we can preserve the thread
       var tweetId = eventMsg.id_str;
       // look up the URL for the corresponding keyword
       var url = lookup[wordFound];
       // build our tweet:
-      // the user we're replying to + list of mentions + 
+      // the user we're replying to + list of mentions +
       // one of our replies with the link inserted instead of "LINK"
       var tweet = '@' + user + ' ' + mentions.join(' ') + ' ' + replies.pick().replace('LINK',url);
       var data = JSON.stringify({
@@ -152,21 +149,19 @@ stream.on('tweet', function (eventMsg) {
         tweet: tweet
       });
       console.log(data);
-      client.rpush(botName + '-queue', data, redis.print);    
+      client.rpush(bot_name + '-queue', data, redis.print);
     }
   }
   console.log(user + ': ' + text);
-});
+}
 
-var userStream = T.stream('user');
-// also track follows and add to a different queue
-userStream.on('follow', function (eventMsg) {
+function onFollow(eventMsg) {
   var name = eventMsg.source.name;
   var screenName = eventMsg.source.screen_name;
   console.log('Followed by: ', name, screenName);
   // check if this person is in the followed Set
   // sismember ref: https://redis.io/commands/sismember
-  client.sismember(botName + '-followed-set', screenName, function(err, isMember) {
+  client.sismember(bot_name + '-followed-set', screenName, function(err, isMember) {
     // if this person is NOT in the followed Set, push them to the queue
     if (!isMember) {
       var reward = rewards.pick();
@@ -174,17 +169,29 @@ userStream.on('follow', function (eventMsg) {
         tweet: '@' + screenName + ' ' + reward.text,
         url: reward.url
       });
-      client.rpush(botName + '-follow-queue', data, redis.print);
+      client.rpush(bot_name + '-follow-queue', data, redis.print);
       // add this person to the followed Set
-      client.sadd(botName + '-followed-set', screenName);
+      client.sadd(bot_name + '-followed-set', screenName);
     }
     // if the person is in the follow set, well then...
     else {
       // do nothing
     }
   });
-});
+}
 
-// on launch, and every two minutes, update the spreadsheet
-updateData();
-setInterval(updateData, 2*60*1000);
+function startWatcher() {
+  // on launch, and every two minutes, update the spreadsheet
+  updateData();
+  setInterval(updateData, 2*60*1000);
+
+  // start listening for mentions of our bot name
+  var stream = T.stream('statuses/filter', { track: [ bot_name ] });
+  stream.on('tweet', onTweet);
+
+  // also track follows and add to a different queue
+  var userStream = T.stream('user');
+  userStream.on('follow', onFollow);
+}
+
+module.exports = startWatcher;

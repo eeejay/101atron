@@ -1,3 +1,4 @@
 node_modules/
 *.rdb
-config.js
+userconfig.json
+npm-debug.json

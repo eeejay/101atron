@@ -1,21 +1,23 @@
 var _ = require('underscore');
 _.mixin( require('underscore.deferred') );
 var config = require('./config.js');
-var Twit = require('twit');
+var startWatcher = require('./watcher');
+var Twit = require('./twit');
 var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
 var T = new Twit(twitConfig);
 var request = require('request');
+var startWeb = require("./web");
 
 // configuration
-var botName = config.botName;
-var redisPort = config.redisPort || 6379;
+var bot_name = config.bot_name;
+var redis_addr = config.redis_port || config.redis_url || 6379;
 
 function popFollowQueue() {
   // init the redis client
-  var redis = require('redis'), client = redis.createClient(redisPort);
+  var redis = require('redis'), client = redis.createClient(redis_addr);
   // return the most recent follower
   // lpop ref: https://redis.io/commands/lpop
-  client.lpop(botName + '-follow-queue', function(err, reply) {
+  client.lpop(bot_name + '-follow-queue', function(err, reply) {
     console.log('Next follower is: ', reply);
     // if there is a reply
     if (reply !== null) {
@@ -43,11 +45,11 @@ function popFollowQueue() {
         // get the base64 encoding of the URL
         var b64url = new Buffer(data.url).toString('base64');
         // see if the URL exists in our DB
-        client.hexists(botName + '-images',b64url, function(err, doesExist) {
+        client.hexists(bot_name + '-images',b64url, function(err, doesExist) {
           console.log('doesExist:', doesExist);
           // if the URL does exist, get it
           if (doesExist) {
-            client.hget(botName + '-images',b64url, function(err, theData) {
+            client.hget(bot_name + '-images',b64url, function(err, theData) {
               // if we have a problem grabbing the image locally, log the error and quit
               if (err) {
                 console.log('error:', err);
@@ -56,7 +58,7 @@ function popFollowQueue() {
               } else {
                 // upload the media
                 T.post('media/upload', { media: theData }, function (err, dataResp) {
-                  // store the media in a variable 
+                  // store the media in a variable
                   var mediaIdStr = dataResp.media_id_string;
                   // post a tweet that includes the text and the media
                   T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
@@ -77,7 +79,7 @@ function popFollowQueue() {
           }
           else {
             // if it doesn't exist, then download the image, convert the image data to base64,
-            // then put that in the botName + '-images' hash, and then upload it as media
+            // then put that in the bot_name + '-images' hash, and then upload it as media
             var chunks = [];
             // download the image
             request
@@ -97,7 +99,7 @@ function popFollowQueue() {
                 // convert image to base64
                 var b64content = Buffer.concat(chunks).toString('base64');
                 // put the content in the DB
-                client.hset(botName + '-images',b64url,b64content, function(err) {
+                client.hset(bot_name + '-images',b64url,b64content, function(err) {
                   // if there's an error, log it and quit
                   if (err) {
                     console.log('error:', err);
@@ -106,7 +108,7 @@ function popFollowQueue() {
                   } else {
                     // upload the media
                     T.post('media/upload', { media: b64content }, function (err, dataResp) {
-                      // store the media in a variable  
+                      // store the media in a variable
                       var mediaIdStr = dataResp.media_id_string;
                       // post a tweet that includes the text and the media
                       T.post('statuses/update', { status: data.tweet, media_ids: [mediaIdStr] }, function(err, reply) {
@@ -137,9 +139,9 @@ function popFollowQueue() {
 }
 
 function popQueue() {
-  var redis = require('redis'), client = redis.createClient(redisPort);
+  var redis = require('redis'), client = redis.createClient(redis_addr);
   // pop the queue
-  client.lpop(botName + '-queue', function(err, reply) {
+  client.lpop(bot_name + '-queue', function(err, reply) {
     console.log('Next is: ', reply);
     // if null, ignore
     if (reply !== null) {
@@ -158,11 +160,38 @@ function popQueue() {
     else {
       // empty queue, close client
       client.end();
-      // pop the follow queue now instead
+      // if there are no messages (we are not serving activists),
+      // THEN we pop the follow queue for some fun instead
       popFollowQueue();
     }
   });
 }
 
-// we only pop the message queue. if there are no messages (we are not serving activists), THEN we pop the follow queue for some fun instead
-popQueue();
+if (require.main === module) {
+  let argv = require('minimist')(process.argv.slice(2));
+  console.log(argv);
+
+  if (argv['watch']) {
+    // start watcher. will probably pop queue from another process..
+    startWatcher();
+  } else if (argv['pop-queue']) {
+    // pop queue once.
+    popQueue();
+  } else {
+    var interval = Number(argv['interval'] || 61);
+    if (isNaN(interval)) {
+      console.error("interval must be a number");
+      process.exit(1);
+    }
+
+    if (interval < 60) {
+      console.warning("interval is smaller than 60 seconds");
+    }
+
+    // do it all. watch for tweets, and pop the queue.
+    startWatcher();
+    // pop queue at a set interval.
+    setInterval(popQueue, interval*1000);
+    startWeb();
+  }
+}

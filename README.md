@@ -51,11 +51,9 @@ $ npm install
 
 ## Overview
 
-Before you run the bot, it's useful to understand how it's architected. The bot consists of two executable files: `index.js` and `watcher.js`.
+Before you run the bot, it's useful to understand how it's architected. The bot listens to Twitter, when it is invoked by either a tweet or follow it composes a tweet that is then added to a queue. For rate limiting reasons, the queue is pumped at a regualr interval longer than one minute.
 
-`watcher.js` is designed to be always running in the background. This is the process that watches for users "invoking" the bot and for users following the bot. It's always listening to Twitter. When a user tweets something like "hey @101atron tell @tinysubversions about cats", this file registers the event and then composes a tweet that is pushed to our Redis database. *Importantly, this file does not ever tweet: it just queues tweets up in a database.*
-
-`index.js` is where the tweeting happens, and is a much simpler piece of code. This file is meant to be executed via a cron job or other scheduler. If you set it to run every five minutes, then every five minutes the code will look at the database, see if there's a tweet it's supposed to tweet, and then posts it to Twitter.
+This can all happen in one process, or you can split the tasks into two processes. One that watches Twitter and runs continuously. Another one can be started as a cron job and pumps the queue at a given interval.
 
 ## Set up your bot's Twitter account
 
@@ -75,17 +73,17 @@ Next you'll see a screen with a "Details" tab. Click on the "Settings" tab and u
 
 Then go back to the Details tab, and at the bottom click "create my access token". Nothing might happen immediately. Wait a minute and reload the page. Then there should be "access token" and "access token secret", which are both long strings of letters and numbers.
 
-Now use a text editor to open up the `config.js` file. It should look like this:
+Now use a text editor to open up the `userconfig.json` file. It should look like this:
 
-```javascript
-module.exports = {
-  consumer_key:         'blah',
-  consumer_secret:      'blah',
-  access_token:         'blah',
-  access_token_secret:  'blah',
-  redisPort:            6379,
-  botName:              '@AccountNameOfYourBotGoesHere',
-  spreadsheetKey:       '1kTohpjjl8i0GFUdvIUc1HLv0hV_JbOaMav7nKVWc7AY'
+```json
+{
+  "consumer_key":         "blah",
+  "consumer_secret":      "blah",
+  "access_token":         "blah",
+  "access_token_secret":  "blah",
+  "redis_port":            6379,
+  "bot_name":              "@AccountNameOfYourBotGoesHere",
+  "spreadsheet_key":       "1kTohpjjl8i0GFUdvIUc1HLv0hV_JbOaMav7nKVWc7AY"
 }
 ```
 
@@ -97,44 +95,55 @@ So the first thing we need to make this run is our database. Run a Redis server 
 
 `$ redis-server &`
 
-This code assumes that Redis is running on its default port of 6379. If you're running it on a different port, just edit `config.js` and change the value of `redisPort` to the right port.
+This code assumes that Redis is running on its default port of 6379. If you're running it on a different port, just edit `userconfig.json` and change the value of `redis_port` to the right port.
 
-Next, update the `botName` field in `config.js` to the username of your actual Twitter account for the bot, along with the '@' symbol. If the account name is '@myFirstBot' then set `botName` to exactly that.
+If the Redis host is anything but localhost
+
+Next, update the `bot_name` field in `userconfig.json` to the username of your actual Twitter account for the bot, along with the '@' symbol. If the account name is '@myFirstBot' then set `bot_name` to exactly that.
 
 ## Set up the spreadsheet
 
 Take a look at the [default 101atron spreadsheet](https://docs.google.com/spreadsheets/d/1kTohpjjl8i0GFUdvIUc1HLv0hV_JbOaMav7nKVWc7AY/edit?usp=sharing). It consists of four tabs: Links, Users, Responses, and Follow Rewards. The spreadsheet itself is pretty well documented -- just open up each tab and read the description of what it does to familiarize yourself with it.
 
-Right now the bot is set up to use this exact spreadsheet. You can see in the URL that there is a long string of characters -- this is the "spreadsheet key", and it matches what's currently set in `config.js` for `spreadsheetKey`.
+Right now the bot is set up to use this exact spreadsheet. You can see in the URL that there is a long string of characters -- this is the "spreadsheet key", and it matches what's currently set in `userconfig.json` for `spreadsheet_key`.
 
-You can use this existing spreadsheet to test things out, but eventually you'll want to make a copy of the spreadsheet and enter the new spreadsheet key into `config.js`, then go to "File --> Publish to the web..." and publish the entire spreadsheet to the web. This allows the bot to view the spreadsheet and read the data you put in there.
+You can use this existing spreadsheet to test things out, but eventually you'll want to make a copy of the spreadsheet and enter the new spreadsheet key into `userconfig.json`, then go to "File --> Publish to the web..." and publish the entire spreadsheet to the web. This allows the bot to view the spreadsheet and read the data you put in there.
 
 ## Your first test run
 
 Once you have a spreadsheet set up and published (or you're just using the default one), run:
 
-`$ node watcher.js`
+`$ node index.js`
 
 This will make the bot start "watching" for input.
 
 Next, use a Twitter account that you've authorized to invoke the bot in the "Users" tab of the spreadsheet and tweet at the bot with a phrase that includes "about" followed by one of the keywords, along with another user's name.
 
-"@myBotName, tell @twitter about cats"
+"@mybot_name, tell @twitter about cats"
 
-This should almost immediately cause the terminal window running `watcher.js` to write some text to the screen confirming that it saw you talk to it and that it put a tweet in the Redis DB.
+This should almost immediately cause the terminal window running `index.js` to write some text to the screen confirming that it saw you talk to it and that it put a tweet in the Redis DB.
 
-In another terminal window, manually run `index.js` to pull that tweet from the DB and tweet it.
+After a period less than the set interval (61 seconds by default), the tweet will be retrieved from the Redis DB and published.
 
-`$ node index.js`
+## Tweet via cron job
+
+If, for some reason you would like to split the bot into two separate tasks: watching and tweeting, you can start the watcher with the following command:
+
+`$ node index.js --watcher`
+
+You can then schedule the following command via a `cron` or similar scheduler:
+
+`$ node index.js --pop-queue`
+
+This will pop the queue of tweets and follows in the Redis DB and post them to Twitter.
 
 ## Permanent setup
 
 If you want this to run reliably and permanently, I recommend the following setup:
 
 * run the bot on a remote server of some kind so it can run 24/7.
-* use a process monitoring program like [forever](https://www.npmjs.com/package/forever) to run `watcher.js`. This will automatically restart `watcher.js` if it crashes for some reason.
-* run your redis DB and `watcher.js` (via `forever` or similar) on reboot.
-* run `index.js` via `cron` or a similar scheduler, and don't have it run more than once a minute (otherwise you'll run into Twitter rate limits).
+* use a process monitoring program like [forever](https://www.npmjs.com/package/forever) to run `index.js`. This will automatically restart `index.js` if it crashes for some reason.
+* run your redis DB and `index.js` (via `forever` or similar) on reboot.
 
 ## Questions
 
