@@ -31,12 +31,12 @@ function popFollowQueue() {
           // if there's an error, log it and quit
           if (err) {
             console.log('error:', err);
-            client.end();
+            client.quit();
           }
           // otherwise, log the tweet and quit
           else {
             console.log('reply:', reply);
-            client.end();
+            client.quit();
           }
         });
       }
@@ -53,7 +53,7 @@ function popFollowQueue() {
               // if we have a problem grabbing the image locally, log the error and quit
               if (err) {
                 console.log('error:', err);
-                client.end();
+                client.quit();
               // otherwise, we did get our local image
               } else {
                 // upload the media
@@ -65,12 +65,12 @@ function popFollowQueue() {
                     // if there's an error, log it and quit
                     if (err) {
                       console.log('error:', err);
-                      client.end();
+                      client.quit();
                     }
                     // otherwise, log the tweet and quit
                     else {
                       console.log('reply:', reply);
-                      client.end();
+                      client.quit();
                     }
                   });
                 });
@@ -87,7 +87,7 @@ function popFollowQueue() {
               // if there's an error, log it and quit
               .on('error', function(response) {
                 console.log('error:', response);
-                client.end();
+                client.quit();
               })
               // otherwise, push the image chunk into the chunks array
               .on('data', function(chunk) {
@@ -103,7 +103,7 @@ function popFollowQueue() {
                   // if there's an error, log it and quit
                   if (err) {
                     console.log('error:', err);
-                    client.end();
+                    client.quit();
                   // otherwise, continue to the media upload
                   } else {
                     // upload the media
@@ -115,12 +115,12 @@ function popFollowQueue() {
                         // if there's an error, log it and quit
                         if (err) {
                           console.log('error:', err);
-                          client.end();
+                          client.quit();
                         }
                         // otherwise, log the tweet and quit
                         else {
                           console.log('reply:', reply);
-                          client.end();
+                          client.quit();
                         }
                       });
                     });
@@ -133,7 +133,7 @@ function popFollowQueue() {
     }
     else {
       // empty queue, close client
-      client.end();
+      client.quit();
     }
   });
 }
@@ -149,17 +149,17 @@ function popQueue() {
       T.post('statuses/update', { status: data.tweet, in_reply_to_status_id: data.tweetId }, function(err, reply) {
         if (err) {
           console.log('error:', err);
-          client.end();
+          client.quit();
         }
         else {
           console.log('reply:', reply);
-          client.end();
+          client.quit();
         }
       });
     }
     else {
       // empty queue, close client
-      client.end();
+      client.quit();
       // if there are no messages (we are not serving activists),
       // THEN we pop the follow queue for some fun instead
       popFollowQueue();
@@ -169,7 +169,6 @@ function popQueue() {
 
 if (require.main === module) {
   let argv = require('minimist')(process.argv.slice(2));
-  console.log(argv);
 
   if (argv['watch']) {
     // start watcher. will probably pop queue from another process..
@@ -185,7 +184,7 @@ if (require.main === module) {
     }
 
     if (interval < 60) {
-      console.warning("interval is smaller than 60 seconds");
+      console.warn("interval is smaller than 60 seconds");
     }
 
     // do it all. watch for tweets, and pop the queue.
