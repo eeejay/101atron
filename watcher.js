@@ -1,13 +1,8 @@
-// underscore docs: http://underscorejs.org/#each
-//                  http://underscorejs.org/#pick
-//                  http://underscorejs.org/#reject
-//                  http://underscorejs.org/#find
-//                  http://underscorejs.org/#difference
-var _ = require('underscore');
-_.mixin( require('underscore.deferred') );
 var config = require('./config.js');
 var Twit = require('./twit');
-var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
+var twitConfig = Object.entries(config)
+  .filter(([key]) => ['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret'].includes(key))
+  .reduce((config, [key, val]) => Object.assign(config, { [key]: val }), {});
 var T = new Twit(twitConfig);
 var GoogleSheet = require('./googlesheet');
 // create a new googlesheet object
@@ -56,7 +51,7 @@ function onTweet(eventMsg) {
         // extract every user from the tweet as an array of usernames (minus our own username)
         // match all usernames but remove the bot name itself (case insensitive)
         // so that we have a list of people we're tagging in the message
-        var mentions = _.difference(text.match(/@\w*/g), [bot_name.toLowerCase()]);
+        var mentions = text.match(/@\w*/g).filter(names => names != bot_name.toLowerCase())
         // get the tweet ID we're replying to so we can preserve the thread
         var tweetId = eventMsg.id_str;
         // look up the URL for the corresponding keyword

@@ -1,9 +1,9 @@
-var _ = require('underscore');
-_.mixin( require('underscore.deferred') );
 var config = require('./config.js');
 var startWatcher = require('./watcher');
 var Twit = require('./twit');
-var twitConfig = _.pick(config, 'consumer_key', 'consumer_secret', 'access_token', 'access_token_secret');
+var twitConfig = Object.entries(config)
+  .filter(([key]) => ['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret'].includes(key))
+  .reduce((config, [key, val]) => Object.assign(config, { [key]: val }), {});
 var T = new Twit(twitConfig);
 var request = require('request');
 var startWeb = require("./web");
