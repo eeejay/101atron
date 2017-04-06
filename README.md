@@ -11,9 +11,11 @@ For a general overview of its use, [check out this article](http://feeltrain.com
 To install and run 101atron you need the following software:
 
 * [Node.js](https://nodejs.org/) v0.10+.
-* [redis](https://redis.io/topics/quickstart). This is the database software used to track state.
+* [redis](https://redis.io/topics/quickstart). This is the database software used to track state (optional).
 
 ## Redis installation and notes
+
+_This step may not be necessary. Check out the database section below_
 
 Download and compile Redis:
 
@@ -91,6 +93,8 @@ In between those quotes, instead of `'blah'`, paste the appropriate info from th
 
 ## Run the database and configure the bot
 
+_You don't need to run the redis server anymore. It is only necessary when your bot is set up to tweet via cron job, so that the scheduled task can grab the queue from persistant storage. If you don't provide a redis port or address, the bot will use a memory-based queue_
+
 So the first thing we need to make this run is our database. Run a Redis server as a background process if you're not already running one:
 
 `$ redis-server &`
@@ -144,6 +148,24 @@ If you want this to run reliably and permanently, I recommend the following setu
 * run the bot on a remote server of some kind so it can run 24/7.
 * use a process monitoring program like [forever](https://www.npmjs.com/package/forever) to run `index.js`. This will automatically restart `index.js` if it crashes for some reason.
 * run your redis DB and `index.js` (via `forever` or similar) on reboot.
+
+## Development
+
+You can run this bot and interact with it on the command line without having it interact with Twitter. This is good for testing. Just set the environment variable `DEBUG` to `1`.
+
+For example:
+
+`$ DEBUG=1 node index.js --interval 1`
+
+You can interact with the bot from standard input and output. To test an example tweet do:
+
+`userfoo tweets: tell @userbar about cats.`
+
+To test a follow:
+
+`userbar follows`
+
+You will see logging output from these inputs that will show how the bot responds.
 
 ## Questions
 
