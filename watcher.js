@@ -43,7 +43,7 @@ function onTweet(eventMsg) {
       }
       // check to see if a valid keyword is in the text of the string, normalized for case
       // undefined if not found.
-      var wordFound = postText.split(/\s/).find(word => {
+      var wordFound = postText.split(/\W/).find(word => {
         return word.match(/\w/) && keywords.has(word)
       });
       console.log('Word found: ', wordFound);
