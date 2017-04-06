@@ -1,8 +1,10 @@
+const { promisifyAll } = require("bluebird");
 const imageCache = new Map();
 
 class Images {
-  constructor(redisClient) {
-    this.client = redisClient;
+  constructor(botName, redisClient) {
+    this.client = promisifyAll(redisClient);
+    this.botName = botName;
   }
 
   getImage(url) {
@@ -30,6 +32,20 @@ class Images {
       });
     }
 
-    return Promise.resolve();
+    let imagesKey = this.botName + "-images"
+
+    return this.client.hgetAsync(imagesKey, b64url).then(data => {
+      if (data) {
+        return data;
+      }
+
+      return this.getImage(url).then(b64Content => {
+        return this.client.hsetAsync(imagesKey, b64url, b64Content).then(() => {
+          return b64Content;
+        });
+      });
+    })
   }
 }
+
+module.exports = Images;

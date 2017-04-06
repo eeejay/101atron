@@ -10,9 +10,10 @@ var GoogleSheet = require('./googlesheet');
 var gs = new GoogleSheet(config.spreadsheet_key);
 
 var bot_name = config.bot_name;
-var redis_addr = config.redis_port || config.redis_url || 6379;
-var redis = require('redis'), client = null; //redis.createClient(redis_addr);
-var queue = new Queue(client);
+var redis_addr = config.redis_port || config.redis_url;
+var redis = require('redis')
+var client = redis_addr ? redis.createClient(redis_addr) : null;
+var queue = new Queue(bot_name, client);
 
 Array.prototype.pick = function() {
   return this[Math.floor(Math.random()*this.length)];
@@ -66,7 +67,6 @@ function onTweet(eventMsg) {
           tweetId: tweetId,
           tweet: tweet
         });
-        console.log(data);
         queue.pushToTweetQueue(data);
       }
     }

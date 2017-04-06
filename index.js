@@ -9,15 +9,16 @@ var Images = require('./images');
 var T = new Twit(twitConfig);
 var request = require('request');
 var startWeb = require("./web");
+var redis = require('redis')
 
 // configuration
 var bot_name = config.bot_name;
-var redis_addr = config.redis_port || config.redis_url || 6379;
+var redis_addr = config.redis_port || config.redis_url;
 
 function popFollowQueue() {
   // init the redis client
-  var redis = require('redis'), client = null; // redis.createClient(redis_addr);
-  var queue = new Queue(client);
+  var client = redis_addr ? redis.createClient(redis_addr) : null;
+  var queue = new Queue(bot_name, client);
   // return the most recent follower
   queue.popFromFollowedQueue().then(data => {
     if (!data) {
@@ -46,7 +47,7 @@ function popFollowQueue() {
         }
       });
     } else {
-      var images = new Images();
+      var images = new Images(bot_name, client);
       images.get(data.url).then(theData => {
         // upload the media
         T.post('media/upload', { media: theData }, function (err, dataResp) {
@@ -72,11 +73,11 @@ function popFollowQueue() {
 }
 
 function popQueue() {
-  var redis = require('redis'), client = null; //redis.createClient(redis_addr);
-  var queue = new Queue(client);
+  var client = redis_addr ? redis.createClient(redis_addr) : null;
+  var queue = new Queue(bot_name, client);
 
   // pop the queue
-  queue.popFromTweetQueue().then(data => {
+  queue.popFromTweetQueue().catch(console.error.bind(console)).then(data => {
     if (!data) {
       if (client) {
         client.quit();
@@ -111,7 +112,7 @@ if (require.main === module) {
     // pop queue once.
     popQueue();
   } else {
-    var interval = Number(argv['interval'] || 61);
+    var interval = Number(argv['interval'] || (process.env.DEBUG ? 1 : 61));
     if (isNaN(interval)) {
       console.error("interval must be a number");
       process.exit(1);

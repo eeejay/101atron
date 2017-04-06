@@ -1,3 +1,4 @@
+const { promisifyAll } = require("bluebird");
 const memDb = {
   followSet: new Set(),
   followQueue: [],
@@ -5,8 +6,9 @@ const memDb = {
 }
 
 class Queue {
-  constructor(redisClient) {
-    this.client = redisClient;
+  constructor(botName, redisClient) {
+    this.client = promisifyAll(redisClient);
+    this.botName = botName;
   }
 
   isAlreadyFollowed(screenName) {
@@ -14,7 +16,7 @@ class Queue {
       return Promise.resolve(memDb.followSet.has(screenName));
     }
 
-    return Promise.resolve();
+    return this.client.sismemberAsync(this.botName + '-followed-set', screenName);
   }
 
   addToFollowed(screenName) {
@@ -23,7 +25,7 @@ class Queue {
       return Promise.resolve();
     }
 
-    return Promise.resolve();
+    return this.client.saddAsync(this.botName + '-followed-set', screenName);
   }
 
   pushToFollowedQueue(data) {
@@ -32,7 +34,7 @@ class Queue {
       return Promise.resolve();
     }
 
-    return Promise.resolve();
+    return this.client.rpushAsync(this.botName + '-follow-queue', data);
   }
 
   popFromFollowedQueue() {
@@ -40,7 +42,9 @@ class Queue {
       return Promise.resolve(memDb.followQueue.pop());
     }
 
-    return Promise.resolve("");
+    return this.client.lpopAsync(this.botName + '-follow-queue').then(reply => {
+      return JSON.parse(reply);
+    });
   }
 
   pushToTweetQueue(data) {
@@ -49,7 +53,8 @@ class Queue {
       return Promise.resolve();
     }
 
-    return Promise.resolve();
+    console.log("pushToTweetQueue");
+    return this.client.rpushAsync(this.botName + '-queue', data);
   }
 
   popFromTweetQueue() {
@@ -57,7 +62,9 @@ class Queue {
       return Promise.resolve(memDb.tweetQueue.pop());
     }
 
-    return Promise.resolve({});
+    return this.client.lpopAsync(this.botName + '-queue').then(reply => {
+      return JSON.parse(reply);
+    });
   }
 }
 
