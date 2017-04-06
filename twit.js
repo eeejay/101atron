@@ -65,8 +65,13 @@ class MockTwit {
     return new TWEET_STREAMS[type]();
   }
 
-  post(type, payload) {
+  post(type, payload, cb) {
     console.log("Mock Tweet", type, payload);
+    if (type == "media/upload") {
+      cb(null, { media_id_string: Math.random() + '' })
+    } else {
+      cb(null, null);
+    }
   }
 }
 
