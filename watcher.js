@@ -1,5 +1,6 @@
 var config = require('./config.js');
 var Twit = require('./twit');
+var Queue = require('./queue');
 var twitConfig = Object.entries(config)
   .filter(([key]) => ['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret'].includes(key))
   .reduce((config, [key, val]) => Object.assign(config, { [key]: val }), {});
@@ -10,7 +11,8 @@ var gs = new GoogleSheet(config.spreadsheet_key);
 
 var bot_name = config.bot_name;
 var redis_addr = config.redis_port || config.redis_url || 6379;
-var redis = require('redis'), client = redis.createClient(redis_addr);
+var redis = require('redis'), client = null; //redis.createClient(redis_addr);
+var queue = new Queue(client);
 
 Array.prototype.pick = function() {
   return this[Math.floor(Math.random()*this.length)];
@@ -65,7 +67,7 @@ function onTweet(eventMsg) {
           tweet: tweet
         });
         console.log(data);
-        client.rpush(bot_name + '-queue', data, redis.print);
+        queue.pushToTweetQueue(data);
       }
     }
     console.log(user + ': ' + text);
@@ -79,7 +81,7 @@ function onFollow(eventMsg) {
     console.log('Followed by: ', name, screenName);
     // check if this person is in the followed Set
     // sismember ref: https://redis.io/commands/sismember
-    client.sismember(bot_name + '-followed-set', screenName, function(err, isMember) {
+    queue.isAlreadyFollowed(screenName).then(isMember => {
       // if this person is NOT in the followed Set, push them to the queue
       if (!isMember) {
         var reward = rewards.pick();
@@ -87,15 +89,14 @@ function onFollow(eventMsg) {
           tweet: '@' + screenName + ' ' + reward.text,
           url: reward.url
         });
-        client.rpush(bot_name + '-follow-queue', data, redis.print);
-        // add this person to the followed Set
-        client.sadd(bot_name + '-followed-set', screenName);
+        queue.pushToFollowedQueue(data);
+        queue.addToFollowed(screenName);
       }
       // if the person is in the follow set, well then...
       else {
         // do nothing
       }
-    });
+    })
   });
 }
 
