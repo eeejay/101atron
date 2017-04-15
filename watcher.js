@@ -1,5 +1,6 @@
 var config = require('./config.js');
 var Twit = require('./twit');
+var Web = require('./web');
 var Queue = require('./queue');
 var twitConfig = Object.entries(config)
   .filter(([key]) => ['consumer_key', 'consumer_secret', 'access_token', 'access_token_secret'].includes(key))
@@ -67,6 +68,7 @@ function onTweetToBot(eventMsg) {
           tweetId: tweetId,
           tweet: tweet
         };
+        Web.activity.push([eventMsg, { tweet }]);
         queue.pushToTweetQueue(data);
       }
     }
@@ -107,6 +109,7 @@ function onTweetQuery(eventMsg) {
         };
         // TODO: Make responses more dynamic. Maybe have another sheet for that.
         queue.pushToTweetQueue(data);
+        Web.activity.push([eventMsg, { tweet: params.response }]);
         break;
       }
     }

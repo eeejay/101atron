@@ -8,7 +8,7 @@ var Queue = require('./queue');
 var Images = require('./images');
 var T = new Twit(twitConfig);
 var request = require('request');
-var startWeb = require("./web");
+var Web = require("./web");
 var redis = require('redis')
 
 // configuration
@@ -130,6 +130,6 @@ if (require.main === module) {
     startWatcher();
     // pop queue at a set interval.
     setInterval(popQueue, interval*1000);
-    startWeb();
+    Web.start();
   }
 }
