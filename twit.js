@@ -75,4 +75,21 @@ class MockTwit {
   }
 }
 
-module.exports = process.env.DEBUG ? MockTwit : require('twit');
+if (process.env.DEBUG) {
+  module.exports = MockTwit;
+} else {
+  let Twit = require('twit');
+  if (process.env.MUTE_TWEETS) {
+    Twit.prototype.post = (type, payload, cb) => {
+      if (type == "media/upload") {
+        console.log("Muted media upload");
+        cb(null, { media_id_string: Math.random() + '' })
+      } else {
+        console.log("Muted tweet:", type, payload);
+        cb(null, null);
+      }
+    };
+  }
+
+  module.exports = Twit;
+}
