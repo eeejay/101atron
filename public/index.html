@@ -1,0 +1,71 @@
+<html>
+  <head>
+    <style>
+      dt {
+        width: 50%;
+        background-color: lightblue;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 20px;
+      }
+
+      dd {
+        width: 50%;
+        background-color:lavender;
+        border-radius: 10px;
+        padding: 10px;
+        margin-top: 10px;
+        margin-left: 40%;
+      }
+
+      .action {
+        font-style: italic;
+        margin-bottom: 5px;
+        display: block;
+      }
+
+      .content {
+        font-weight: 550;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Bot Activity</h1>
+    <dl id="activity">
+    </dl>
+    <script>
+      let list = document.getElementById("activity");
+      fetch("/activity").then(r => r.json()).then(activity => {
+        for (let item of activity) {
+          list.appendChild(createItem(
+            "dt",
+            `@${item[0].user.screen_name} tweeted`,
+            item[0].text,
+            `https://twitter.com/statuses/${item[0].id_str}`));
+          list.appendChild(createItem(
+            "dd",
+            "Bot responded",
+            item[1].tweet));
+        }
+      });
+
+      function createItem(elemType, action, content, link) {
+        let elem = document.createElement(elemType);
+        let actionElem = document.createElement(link ? "a" : "span");
+        actionElem.className = "action";
+        actionElem.textContent = action;
+        if (link) {
+          actionElem.href = link;
+          actionElem.target = "_blank";
+        }
+        elem.appendChild(actionElem);
+        let contentElem = document.createElement("span");
+        contentElem.className = "content";
+        contentElem.textContent = content;
+        elem.appendChild(contentElem);
+        return elem;
+      }
+    </script>
+  </body>
+</html>

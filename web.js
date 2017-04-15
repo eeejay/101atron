@@ -2,9 +2,10 @@ var express = require('express')
 
 var activity = [];
 var app = express();
+app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.send(activityToList());
+app.get('/activity', (req, res) => {
+  res.json(activity);
 });
 
 function start() {
