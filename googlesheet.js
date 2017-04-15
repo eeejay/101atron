@@ -63,6 +63,17 @@ class GoogleSheet {
       });
     });
   }
+
+  getQueries() {
+    return this.getRows(5).then(data => {
+      return new Map(data.map(r => [r.query, {
+        match: r.match,
+        dontmatch: r.dontmatch,
+        response: r.response,
+        mentions: new Set(r.mentions)
+      }]));
+    });
+  }
 }
 
 module.exports = GoogleSheet;
@@ -70,11 +81,12 @@ module.exports = GoogleSheet;
 if (require.main === module) {
   const config = require('./config.js');
   let gs = new GoogleSheet(config.spreadsheet_key);
-  Promise.all([gs.getKeywords(), gs.getUsers(), gs.getReplies(), gs.getRewards()])
+  Promise.all([gs.getKeywords(), gs.getUsers(), gs.getReplies(), gs.getRewards(), gs.getQueries()])
     .catch(console.error.bind(console)).then(res => {
       console.log("keywords", res[0]);
       console.log("\nusers", res[1]);
       console.log("\nreplies", res[2]);
       console.log("\nrewards", res[3]);
+      console.log("\nqueries", res[4]);
     });
 }

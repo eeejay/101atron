@@ -19,7 +19,7 @@ Array.prototype.pick = function() {
   return this[Math.floor(Math.random()*this.length)];
 };
 
-function onTweet(eventMsg) {
+function onTweetToBot(eventMsg) {
   var promises = [gs.getUsers(), gs.getKeywords(), gs.getReplies()];
   Promise.all(promises).then(([users, keywords, replies]) => {
     // store text of tweet
@@ -74,6 +74,45 @@ function onTweet(eventMsg) {
   });
 }
 
+function tweetMatchesQuery(tweet, query, params) {
+  if (!query.split(" ").every(w => !!tweet.text.match(RegExp(w, "i")))) {
+    return false;
+  }
+
+  if (params.match && !tweet.text.match(params.match, "i")) {
+    return false;
+  }
+
+  if (params.dontmatch && tweet.text.match(params.dontmatch, "i")) {
+    return false;
+  }
+
+  if (params.mentions.size) {
+    let mentions = tweet.entities.user_mentions;
+    if (mentions.every(m => !params.mentions.has(m.screen_name))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function onTweetQuery(eventMsg) {
+  gs.getQueries().then(queries => {
+    for (let [query, params] of queries) {
+      if (tweetMatchesQuery(eventMsg, query, params)) {
+        var data = JSON.stringify({
+          tweetId: eventMsg.id_str,
+          tweet: params.response
+        });
+        // TODO: Make responses more dynamic. Maybe have another sheet for that.
+        queue.pushToTweetQueue(data);
+        break;
+      }
+    }
+  });
+}
+
 function onFollow(eventMsg) {
   gs.getRewards().then(rewards => {
     var name = eventMsg.source.name;
@@ -102,8 +141,15 @@ function onFollow(eventMsg) {
 
 function startWatcher() {
   // start listening for mentions of our bot name
-  var stream = T.stream('statuses/filter', { track: [ bot_name ] });
-  stream.on('tweet', onTweet);
+  var botStream = T.stream('statuses/filter', { track: [ bot_name ] });
+  botStream.on('tweet', onTweetToBot);
+
+  // start listening for our earch queries
+  gs.getQueries().then(queries => {
+    var track = Array.from(queries.keys());
+    var queryStream = T.stream('statuses/filter', { track });
+    queryStream.on('tweet', onTweetQuery);
+  });
 
   // also track follows and add to a different queue
   var userStream = T.stream('user');
