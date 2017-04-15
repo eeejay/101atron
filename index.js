@@ -92,11 +92,15 @@ function popQueue() {
     T.post('statuses/update', { status: data.tweet, in_reply_to_status_id: data.tweetId }, function(err, reply) {
       if (err) {
         console.log('error:', err);
-        client.quit();
+        if (client) {
+          client.quit();
+        }
       }
       else {
         console.log('reply:', reply);
-        client.quit();
+        if (client) {
+          client.quit();
+        }
       }
     });
   });

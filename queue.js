@@ -34,7 +34,7 @@ class Queue {
       return Promise.resolve();
     }
 
-    return this.client.rpushAsync(this.botName + '-follow-queue', data);
+    return this.client.rpushAsync(this.botName + '-follow-queue', JSON.stringify(data));
   }
 
   popFromFollowedQueue() {
@@ -54,7 +54,7 @@ class Queue {
     }
 
     console.log("pushToTweetQueue");
-    return this.client.rpushAsync(this.botName + '-queue', data);
+    return this.client.rpushAsync(this.botName + '-queue', JSON.stringify(data));
   }
 
   popFromTweetQueue() {

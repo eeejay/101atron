@@ -63,10 +63,10 @@ function onTweetToBot(eventMsg) {
         // the user we're replying to + list of mentions +
         // one of our replies with the link inserted instead of "LINK"
         var tweet = '@' + user + ' ' + mentions.join(' ') + ' ' + replies.pick().replace('LINK',url);
-        var data = JSON.stringify({
+        var data = {
           tweetId: tweetId,
           tweet: tweet
-        });
+        };
         queue.pushToTweetQueue(data);
       }
     }
@@ -101,10 +101,10 @@ function onTweetQuery(eventMsg) {
   gs.getQueries().then(queries => {
     for (let [query, params] of queries) {
       if (tweetMatchesQuery(eventMsg, query, params)) {
-        var data = JSON.stringify({
+        var data = {
           tweetId: eventMsg.id_str,
           tweet: params.response
-        });
+        };
         // TODO: Make responses more dynamic. Maybe have another sheet for that.
         queue.pushToTweetQueue(data);
         break;
@@ -124,10 +124,10 @@ function onFollow(eventMsg) {
       // if this person is NOT in the followed Set, push them to the queue
       if (!isMember) {
         var reward = rewards.pick();
-        var data = JSON.stringify({
+        var data = {
           tweet: '@' + screenName + ' ' + reward.text,
           url: reward.url
-        });
+        };
         queue.pushToFollowedQueue(data);
         queue.addToFollowed(screenName);
       }
