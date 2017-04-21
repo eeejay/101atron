@@ -144,8 +144,10 @@ function onFollow(eventMsg) {
 
 function startWatcher() {
   // start listening for mentions of our bot name
-  var botStream = T.stream('statuses/filter', { track: [ bot_name ] });
-  botStream.on('tweet', onTweetToBot);
+  // xxx: disabling for now because of API usage limitations. We should combine
+  // all our needs to one stream..
+  // var botStream = T.stream('statuses/filter', { track: [ bot_name ] });
+  // botStream.on('tweet', onTweetToBot);
 
   // start listening for our earch queries
   gs.getQueries().then(queries => {
@@ -156,8 +158,9 @@ function startWatcher() {
   });
 
   // also track follows and add to a different queue
-  var userStream = T.stream('user');
-  userStream.on('follow', onFollow);
+  // disabling for now because of usage limitations..
+  // var userStream = T.stream('user');
+  // userStream.on('follow', onFollow);
 }
 
 module.exports = startWatcher;
