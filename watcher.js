@@ -81,11 +81,11 @@ function tweetMatchesQuery(tweet, query, params) {
     return false;
   }
 
-  if (params.match && !tweet.text.match(params.match, "i")) {
+  if (params.match.length && !tweet.text.match(params.match, "i")) {
     return false;
   }
 
-  if (params.dontmatch && tweet.text.match(params.dontmatch, "i")) {
+  if (params.dontmatch.length && tweet.text.match(params.dontmatch, "i")) {
     return false;
   }
 
@@ -152,6 +152,7 @@ function startWatcher() {
     var track = Array.from(queries.keys());
     var queryStream = T.stream('statuses/filter', { track });
     queryStream.on('tweet', onTweetQuery);
+    queryStream.on('error', console.error.bind(console));
   });
 
   // also track follows and add to a different queue

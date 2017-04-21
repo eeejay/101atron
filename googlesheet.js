@@ -70,7 +70,7 @@ class GoogleSheet {
         match: r.match,
         dontmatch: r.dontmatch,
         response: r.response,
-        mentions: new Set(r.mentions)
+        mentions: r.mentions.length ? new Set(r.mentions.split(',')) : new Set()
       }]));
     });
   }
