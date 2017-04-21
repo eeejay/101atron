@@ -11,12 +11,13 @@ const activity = {
 
   push: function(data) {
     if (client) {
-      client.lpushAsync("activity-" + config.bot_name, JSON.stringify(data)).then(() => {
-        client.ltrimAsync("activity-" + config.bot_name, 0, 999); // Only store last 1,000 entries..
+      return client.lpushAsync("activity-" + config.bot_name, JSON.stringify(data)).then(() => {
+        return client.ltrimAsync("activity-" + config.bot_name, 0, 999); // Only store last 1,000 entries..
       });
     } else {
       this._list.unshift(data);
       this._list.splice(1000);
+      return Promise.resolve();
     }
   },
 
@@ -39,7 +40,15 @@ app.get('/activity', (req, res) => {
   })
 });
 
-function start() {
+var refreshQueue = () => Promise.resolve();
+app.get('/refresh-query', (req, res) => {
+  refreshQueue().then(() => {
+    res.json(true);
+  });
+});
+
+function start(refreshQueueCb) {
+  refreshQueue = refreshQueueCb;
   app.listen(process.env.PORT || 3000, function () {
     console.log('Example app listening on port 3000!')
   });

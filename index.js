@@ -130,6 +130,6 @@ if (require.main === module) {
     startWatcher();
     // pop queue at a set interval.
     setInterval(popQueue, interval*1000);
-    Web.start();
+    Web.start(startWatcher);
   }
 }

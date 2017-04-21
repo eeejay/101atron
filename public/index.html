@@ -28,27 +28,80 @@
         font-weight: 550;
         display: block;
       }
+
+      header {
+        width: 100%;
+        display: flex;
+        align-items: flex-start;
+      }
+
+      h1 {
+        width: 100%;
+      }
+
+      .new-query {
+        background-color: transparent;
+        width: 100%;
+        margin-left: 0;
+        padding: 0;
+      }
+
+      .new-query table {
+        width: 100%;
+        border-style: dotted;
+      }
+
     </style>
   </head>
   <body>
-    <h1>Bot Activity</h1>
+    <header>
+      <h1>Bot Activity</h1>
+      <button id="refresh">Refresh Query</button>
+    </header>
     <dl id="activity">
     </dl>
     <script>
-      let list = document.getElementById("activity");
-      fetch("/activity").then(r => r.json()).then(activity => {
-        for (let item of activity) {
-          list.appendChild(createItem(
-            "dt",
-            `@${item[0].user.screen_name} tweeted`,
-            item[0].text,
-            `https://twitter.com/statuses/${item[0].id_str}`));
-          list.appendChild(createItem(
-            "dd",
-            "Bot responded",
-            item[1].tweet));
+      function getActivity() {
+        let list = document.getElementById("activity");
+        list.innerHTML = "";
+        fetch("/activity").then(r => r.json()).then(activity => {
+          for (let item of activity) {
+            if (item.new_query) {
+              let elem = document.createElement("dt");
+              elem.className = "new-query";
+              list.appendChild(elem);
+
+              elem = document.createElement("dd");
+              elem.className = "new-query";
+              elem.appendChild(createQueryTable(item.new_query));
+              list.appendChild(elem);
+              continue;
+            }
+
+            list.appendChild(createItem(
+              "dt",
+              `@${item[0].user.screen_name} tweeted`,
+              item[0].text,
+              `https://twitter.com/statuses/${item[0].id_str}`));
+            list.appendChild(createItem(
+              "dd",
+              "Bot responded",
+              item[1].tweet));
+          }
+        });
+      }
+
+      function createQueryTable(query) {
+        let table = document.createElement("table");
+        table.innerHTML = "<tr><th>Query</th><th>Match</th><th>Don't Match</th><th>Mentions</th><th>Response</th></tr>";
+        for (let q of query) {
+          let row = document.createElement("tr");
+          row.innerHTML = `<td>${q.query}</td><td>${q.match}</td><td>${q.dontmatch}</td><td>${q.mentions.join(",")}</td><td>${q.response}</td>`;
+          table.appendChild(row);
         }
-      });
+
+        return table;
+      }
 
       function createItem(elemType, action, content, link) {
         let elem = document.createElement(elemType);
@@ -66,6 +119,14 @@
         elem.appendChild(contentElem);
         return elem;
       }
+
+      document.getElementById("refresh").addEventListener("click", () => {
+        fetch("/refresh-query").then(() => {
+          getActivity();
+        });
+      });
+
+      getActivity();
     </script>
   </body>
 </html>

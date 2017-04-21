@@ -6,6 +6,10 @@ const LOOKUP_INTERVAL = 2 * 60 * 1000 // Two minutes in milliseconds
 class GoogleSheet {
   constructor(spreadsheet_key) {
     this.gs = new GoogleSpreadsheet(spreadsheet_key);
+    this.clearCache();
+  }
+
+  clearCache() {
     this.cache = {};
     this.lastFetch = {};
   }
@@ -66,12 +70,19 @@ class GoogleSheet {
 
   getQueries() {
     return this.getRows(5).then(data => {
-      return new Map(data.map(r => [r.query, {
+      let query = new Map(data.map(r => [r.query, {
         match: r.match,
         dontmatch: r.dontmatch,
         response: r.response,
         mentions: r.mentions.length ? new Set(r.mentions.split(',')) : new Set()
       }]));
+
+      query.__proto__.toObject = function() {
+        return Array.from(this.entries()).map(
+          q => Object.assign({}, q[1], { query: q[0], mentions: Array.from(q[1].mentions) }));
+      };
+
+      return query;
     });
   }
 }

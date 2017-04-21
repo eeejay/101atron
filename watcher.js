@@ -147,13 +147,20 @@ function onFollow(eventMsg) {
   });
 }
 
+var queryStream;
+
 function startWatcher() {
+  if (queryStream) {
+    stopWatcher();
+  }
+
   // start listening for our search queries and bot mentions
-  gs.getQueries().then(queries => {
+  return gs.getQueries().then(queries => {
     var track = Array.from(queries.keys()).concat([ bot_name ]);
-    var queryStream = T.stream('statuses/filter', { track });
+    queryStream = T.stream('statuses/filter', { track });
     queryStream.on('tweet', onTweetQuery);
     queryStream.on('error', console.error.bind(console));
+    return Web.activity.push({ new_query: queries.toObject() });
   });
 
   // also track follows and add to a different queue
@@ -163,3 +170,12 @@ function startWatcher() {
 }
 
 module.exports = startWatcher;
+function stopWatcher() {
+  // freshen up google sheet.
+  gs.clearCache();
+
+  if (queryStream) {
+    queryStream.stop();
+    queryStream = null;
+  }
+}
