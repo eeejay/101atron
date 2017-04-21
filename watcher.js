@@ -100,6 +100,11 @@ function tweetMatchesQuery(tweet, query, params) {
 }
 
 function onTweetQuery(eventMsg) {
+  if (eventMsg.entities.user_mentions.find(m => m.screen_name == bot_name)) {
+    // Someone is tweeting at us.
+    return onTweetToBot(eventMsg);
+  }
+
   gs.getQueries().then(queries => {
     for (let [query, params] of queries) {
       if (tweetMatchesQuery(eventMsg, query, params)) {
@@ -143,15 +148,9 @@ function onFollow(eventMsg) {
 }
 
 function startWatcher() {
-  // start listening for mentions of our bot name
-  // xxx: disabling for now because of API usage limitations. We should combine
-  // all our needs to one stream..
-  // var botStream = T.stream('statuses/filter', { track: [ bot_name ] });
-  // botStream.on('tweet', onTweetToBot);
-
-  // start listening for our earch queries
+  // start listening for our search queries and bot mentions
   gs.getQueries().then(queries => {
-    var track = Array.from(queries.keys());
+    var track = Array.from(queries.keys()).concat([ bot_name ]);
     var queryStream = T.stream('statuses/filter', { track });
     queryStream.on('tweet', onTweetQuery);
     queryStream.on('error', console.error.bind(console));
