@@ -53,7 +53,6 @@ class Queue {
       return Promise.resolve();
     }
 
-    console.log("pushToTweetQueue");
     return this.client.rpushAsync(this.botName + '-queue', JSON.stringify(data));
   }
 
